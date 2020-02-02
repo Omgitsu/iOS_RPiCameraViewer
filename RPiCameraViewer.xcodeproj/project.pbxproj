@@ -34,6 +34,7 @@
 		29FAE7F51FB39D2D00747217 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 29FAE7F11FB39D2D00747217 /* LaunchScreen.storyboard */; };
 		29FAE7F61FB39D2D00747217 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 29FAE7F31FB39D2D00747217 /* Main.storyboard */; };
 		29FAE7FA1FB39DAF00747217 /* Main.strings in Resources */ = {isa = PBXBuildFile; fileRef = 29FAE7F81FB39DAE00747217 /* Main.strings */; };
+		8304DA8F23E7599A00204083 /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8304DA8E23E7599A00204083 /* Extensions.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -69,6 +70,7 @@
 		29FAE7F21FB39D2D00747217 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
 		29FAE7F41FB39D2D00747217 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Main.storyboard; sourceTree = "<group>"; };
 		29FAE7F91FB39DAE00747217 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = Main.strings; sourceTree = "<group>"; };
+		8304DA8E23E7599A00204083 /* Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Extensions.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -113,6 +115,7 @@
 				29FAE7A91FB38CBB00747217 /* Assets.xcassets */,
 				29FAE7AE1FB38CBB00747217 /* Info.plist */,
 				297ECB7721DC0C1A00DC8869 /* RPiCameraViewer.entitlements */,
+				8304DA8E23E7599A00204083 /* Extensions.swift */,
 			);
 			path = RPiCameraViewer;
 			sourceTree = "<group>";
@@ -264,6 +267,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8304DA8F23E7599A00204083 /* Extensions.swift in Sources */,
 				29FAE7BA1FB38EA400747217 /* StringExt.swift in Sources */,
 				29FAE7CE1FB38F1800747217 /* AboutViewController.swift in Sources */,
 				29FAE7D01FB38F1800747217 /* HelpViewController.swift in Sources */,
@@ -434,12 +438,15 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = RPiCameraViewer/RPiCameraViewer.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = 3985AHAG8A;
+				DEVELOPMENT_TEAM = GUZE58C4S2;
 				INFOPLIST_FILE = RPiCameraViewer/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
-				PRODUCT_BUNDLE_IDENTIFIER = ca.frozen.RPiCameraViewer;
+				PRODUCT_BUNDLE_IDENTIFIER = com.WDDG.RPiCameraViewer;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_OBJC_BRIDGING_HEADER = "RPiCameraViewer/Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 4.0;
@@ -454,10 +461,11 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = RPiCameraViewer/RPiCameraViewer.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = 3985AHAG8A;
+				DEVELOPMENT_TEAM = GUZE58C4S2;
 				INFOPLIST_FILE = RPiCameraViewer/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
-				PRODUCT_BUNDLE_IDENTIFIER = ca.frozen.RPiCameraViewer;
+				PRODUCT_BUNDLE_IDENTIFIER = com.WDDG.RPiCameraViewer;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "RPiCameraViewer/Bridging-Header.h";
 				SWIFT_VERSION = 4.0;

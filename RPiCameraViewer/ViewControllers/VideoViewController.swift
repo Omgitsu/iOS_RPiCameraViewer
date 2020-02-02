@@ -3,6 +3,7 @@ import UIKit
 import AVFoundation
 import VideoToolbox
 import Photos
+import Vision
 
 class VideoViewController: UIViewController
 {
@@ -19,7 +20,8 @@ class VideoViewController: UIViewController
 	@IBOutlet weak var nameLabel: UILabel!
 	@IBOutlet weak var closeButton: UIButton!
 	@IBOutlet weak var snapshotButton: UIButton!
-	
+    @IBOutlet weak var upcLabel: UILabel!
+    
 	// instance variables
 	var camera: Camera?
 	var fadeOutTimer: Timer?
@@ -34,6 +36,20 @@ class VideoViewController: UIViewController
 	var fullpps: [UInt8]?
 	var sps: [UInt8]?
 	var pps: [UInt8]?
+    
+    // Vision Processing
+    let imageRequestHandler = VNSequenceRequestHandler()
+    //  timer fps
+    var timer: Timer?
+    let fps:Double = 5
+    
+    // Layer into which to draw bounding box paths.
+    var pathLayer: CALayer?
+    
+    // Image parameters for reuse throughout app
+    var imageWidth: CGFloat = 0
+    var imageHeight: CGFloat = 0
+    
 
 	//**********************************************************************
 	// viewDidLoad
@@ -67,6 +83,13 @@ class VideoViewController: UIViewController
 		// start reading the stream and passing the data to the video layer
 		app.videoViewController = self
 		start()
+        
+        self.upcLabel.text = ""
+        prepareForDrawing()
+        
+        // timer for image processing
+        let interval:Double = 1/fps
+        timer = Timer.scheduledTimer(timeInterval: interval, target: self, selector: #selector(detectBarcodes), userInfo: nil, repeats: true)
 	}
 	
 	//**********************************************************************
@@ -559,7 +582,213 @@ class VideoViewController: UIViewController
 			AudioServicesPlaySystemSoundWithCompletion(SystemSoundID(1108), nil)
 		}
 	}
+    
+    // MARK: - Vision
+    
+    @objc fileprivate func detectBarcodes() {
+        if !running { return }
+//        print("detect!");
+        guard let originalImage = imageView.image else {
+            print("image cannot be set")
+            return
+        }
+        // Convert from UIImageOrientation to CGImagePropertyOrientation.
+        let cgOrientation = CGImagePropertyOrientation(originalImage.imageOrientation)
+        // Fire off request based on URL of chosen photo.
+        guard let cgImage = originalImage.cgImage else { return }
+        performVisionRequest(image: cgImage, orientation: cgOrientation)
+    }
+    
+    /// - Tag: PerformRequests
+    fileprivate func performVisionRequest(image: CGImage, orientation: CGImagePropertyOrientation) {
+        
+        // Fetch desired requests based on switch status.
+        let requests = createVisionRequests()
+        // Send the requests to the request handler.
+        DispatchQueue.global(qos: .userInitiated).async {
+            do {
+                // TODO: is this in the correct place?
+                self.prepareForDrawing()
+                try self.imageRequestHandler.perform(requests, on:image)
+            } catch let error as NSError {
+                print("Failed to perform image request: \(error)")
+                self.presentAlert("Image Request Failed", error: error)
+                return
+            }
+        }
+    }
+    
+    /// - Tag: CreateRequests
+    fileprivate func createVisionRequests() -> [VNRequest] {
+        
+        // Create an array to collect all desired requests.
+        var requests: [VNRequest] = []
+//        requests.append(self.rectangleDetectionRequest)
+//        requests.append(self.faceDetectionRequest)
+//        requests.append(self.faceLandmarkRequest)
+//        requests.append(self.textDetectionRequest)
+        requests.append(self.barcodeDetectionRequest)
+        // Return grouped requests as a single array.
+        return requests
+    }
+    
+    /// - Tag: VisionRequests
+    lazy var barcodeDetectionRequest: VNDetectBarcodesRequest = {
+        let barcodeDetectRequest = VNDetectBarcodesRequest(completionHandler: self.handleDetectedBarcodes)
+        // Restrict detection to most common symbologies.
+//        barcodeDetectRequest.symbologies = [.QR, .Aztec, .UPCE]
+        barcodeDetectRequest.symbologies = [.QR]
+        return barcodeDetectRequest
+    }()
+
+    fileprivate func handleDetectedBarcodes(request: VNRequest?, error: Error?) {
+        if let nsError = error as NSError? {
+            self.presentAlert("Barcode Detection Error", error: nsError)
+            return
+        }
+        // Perform drawing on the main thread.
+        DispatchQueue.main.async {
+            guard let results = request?.results as? [VNBarcodeObservation] else {
+                return
+            }
+            for result in results {
+                print(result.barcodeDescriptor)
+                print(result.payloadStringValue)
+                print(result.symbology)
+                
+                self.upcLabel.text = result.payloadStringValue
+            }
+            guard let drawLayer = self.pathLayer else { return }
+            self.draw(barcodes: results, onImageWithBounds: drawLayer.bounds)
+            drawLayer.setNeedsDisplay()
+        }
+    }
+    
+    // MARK: - Drawing
+    
+//    func show(_ image: UIImage) {
+    func prepareForDrawing() {
+        DispatchQueue.main.async {
+            // Remove previous paths & image
+            self.pathLayer?.removeFromSuperlayer()
+            self.pathLayer = nil
+    //        imageView.image = nil
+            
+    //        // Account for image orientation by transforming view.
+    //        let correctedImage = scaleAndOrient(image: image)
+            
+            // Place photo inside imageView.
+    //        imageView.image = correctedImage
+            
+            guard let image = self.imageView.image else { return }
+            guard let cgImage = image.cgImage else {
+                print("Trying to show an image not backed by CGImage!")
+                return
+            }
+            
+            let fullImageWidth = CGFloat(cgImage.width)
+            let fullImageHeight = CGFloat(cgImage.height)
+            
+            let imageFrame = self.imageView.frame
+            let widthRatio = fullImageWidth / imageFrame.width
+            let heightRatio = fullImageHeight / imageFrame.height
+            
+            // ScaleAspectFit: The image will be scaled down according to the stricter dimension.
+            let scaleDownRatio = max(widthRatio, heightRatio)
+            
+            // Cache image dimensions to reference when drawing CALayer paths.
+            self.imageWidth = fullImageWidth / scaleDownRatio
+            self.imageHeight = fullImageHeight / scaleDownRatio
+            
+            // Prepare pathLayer to hold Vision results.
+            let xLayer = (imageFrame.width - self.imageWidth) / 2
+            let yLayer = self.imageView.frame.minY + (imageFrame.height - self.imageHeight) / 2
+            let drawingLayer = CALayer()
+            drawingLayer.bounds = CGRect(x: xLayer, y: yLayer, width: self.imageWidth, height: self.imageHeight)
+            drawingLayer.anchorPoint = CGPoint.zero
+            drawingLayer.position = CGPoint(x: xLayer, y: yLayer)
+            drawingLayer.opacity = 0.8
+            self.pathLayer = drawingLayer
+            self.view.layer.addSublayer(self.pathLayer!)
+        }
+    }
+    
+    // MARK: - Path-Drawing
+
+    fileprivate func boundingBox(forRegionOfInterest: CGRect, withinImageBounds bounds: CGRect) -> CGRect {
+        
+        let imageWidth = bounds.width
+        let imageHeight = bounds.height
+        
+        // Begin with input rect.
+        var rect = forRegionOfInterest
+        
+        // Reposition origin.
+        rect.origin.x *= imageWidth
+        rect.origin.x += bounds.origin.x
+        rect.origin.y = (1 - rect.origin.y) * imageHeight + bounds.origin.y
+        
+        // Rescale normalized coordinates.
+        rect.size.width *= imageWidth
+        rect.size.height *= imageHeight
+        
+        return rect
+    }
+
+    fileprivate func shapeLayer(color: UIColor, frame: CGRect) -> CAShapeLayer {
+        // Create a new layer.
+        let layer = CAShapeLayer()
+        
+        // Configure layer's appearance.
+        layer.fillColor = nil // No fill to show boxed object
+        layer.shadowOpacity = 0
+        layer.shadowRadius = 0
+        layer.borderWidth = 4
+        
+        // Vary the line color according to input.
+        layer.borderColor = color.cgColor
+        
+        // Locate the layer.
+        layer.anchorPoint = .zero
+        layer.frame = frame
+        layer.masksToBounds = true
+        
+        // Transform the layer to have same coordinate system as the imageView underneath it.
+        layer.transform = CATransform3DMakeScale(1, -1, 1)
+        
+        return layer
+    }
+
+    // Barcodes are ORANGE.
+    fileprivate func draw(barcodes: [VNBarcodeObservation], onImageWithBounds bounds: CGRect) {
+        CATransaction.begin()
+        for observation in barcodes {
+            let barcodeBox = boundingBox(forRegionOfInterest: observation.boundingBox, withinImageBounds: bounds)
+            let barcodeLayer = shapeLayer(color: .orange, frame: barcodeBox)
+            
+            // Add to pathLayer on top of image.
+            pathLayer?.addSublayer(barcodeLayer)
+        }
+        CATransaction.commit()
+    }
+
+    func presentAlert(_ title: String, error: NSError) {
+        // Always present alert on main thread.
+        DispatchQueue.main.async {
+            let alertController = UIAlertController(title: title,
+                                                    message: error.localizedDescription,
+                                                    preferredStyle: .alert)
+            let okAction = UIAlertAction(title: "OK",
+                                         style: .default) { _ in
+                                            // Do nothing -- simply dismiss alert.
+            }
+            alertController.addAction(okAction)
+            self.present(alertController, animated: true, completion: nil)
+        }
+    }   
 }
+
+
 
 //**********************************************************************
 // globalDecompressionCallback
